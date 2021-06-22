@@ -19,7 +19,7 @@ mongoose.connect(`mongodb://localhost/${config.DB.db_name}`, { useUnifiedTopolog
     console.error("Can't connect to the database...", err);
 })
 
-const universitySchema1 = mongoose.Schema({
+const universitySchema1 = mongoose.Schema({         //Schema for the first.json file and it's further model
     country: String,
     city: String,
     name: String,
@@ -38,7 +38,7 @@ const universitySchema1 = mongoose.Schema({
     count_difference: Number
 });
 
-const universitySchema2 = mongoose.Schema({
+const universitySchema2 = mongoose.Schema({             //schema for the second.json
     country: String,
     overallStudents: Number
 })
@@ -47,7 +47,7 @@ const University1 = mongoose.model("University1", universitySchema1);
 
 const University2 = mongoose.model("University2", universitySchema2)
 
-async function insertData1 (data){
+async function insertData1 (data){          // asynchronous function for inserting document to the university1 collection
     const {error, value} = validate1(data)
     if (error) return console.error(error.details[0].message);
     const university = new University1(value);
@@ -55,7 +55,7 @@ async function insertData1 (data){
     //console.log("Inserted document to University1 : ", result)
 }
 
-async function insertData2 (data){
+async function insertData2 (data){          // asynchronous function for inserting document to the university2 collection
     const {error, value} = validate2(data)
     if (error) return console.error(error.details[0].message);
     const university = new University2(value);
@@ -63,7 +63,7 @@ async function insertData2 (data){
     //console.log("Inserted document to University2 : ", result)
 }
 
-async function update1(filter, data) {
+async function update1(filter, data) {          // function for update filtered documents in collection university1
     const {error, value} = validate1(data)
     if (error) return console.error(error.details[0].message);
     const university = await University1.updateMany(filter, {
@@ -92,7 +92,7 @@ async function main() {
         }
     }]).then(docs => {
         console.log(docs[0])
-        docs.forEach(async (value, index) => {
+        docs.forEach(async (value) => {
             await update1({_id: value._id}, {
                 latitude: value.location.ll[0],
                 longitude: value.location.ll[1] 
@@ -104,26 +104,43 @@ async function main() {
 
     University1.aggregate([
         {
-        $project: {
-            _id: true,
-            country: true,
-            students: true
-        }
-    }, {
-        $group: {
-            _id: "$country",
-            sum: {
-                $sum: {
-                    
+          '$project': {
+            'country': '$country', 
+            'current_students': {
+              '$filter': {
+                'input': '$students', 
+                'as': 'student', 
+                'cond': {
+                  '$eq': [
+                    '$$student.year', {
+                      '$max': '$students.year'
+                    }
+                  ]
                 }
+              }
             }
-        }          
-    }, {
-        $sort: {
-            _id: 1
-        },
-    }]).then(docs => {
-        console.log(docs[0])
+          }
+        }, {
+          '$project': {
+            'country': true, 
+            'all': {
+              '$sum': '$current_students.number'
+            }
+          }
+        }, {
+          '$group': {
+            '_id': '$country', 
+            'all_students': {
+              '$sum': '$all'
+            }
+          }
+        },{
+            '$sort': {
+                '_id': 1
+            }
+        }
+      ]).then(docs => {
+        console.log(docs)
         docs.forEach(async (value, index) => {
 
         })
