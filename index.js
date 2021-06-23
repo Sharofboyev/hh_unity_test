@@ -3,18 +3,15 @@ const config = require("./config");
 const first = require("./first.json");
 const second = require("./second.json");
 const {validate1, validate2} = require("./schemas")
-mongoose.connect(`mongodb://localhost/${config.DB.db_name}`, { useUnifiedTopology: true, useNewUrlParser: true }).then(() => {
+mongoose.connect(`mongodb://localhost/${config.DB.db_name}`, { useUnifiedTopology: true, useNewUrlParser: true }).then(async () => {
     console.log("Connected to the database...");
-    mongoose.connection.db.dropCollection("university1", function(err, result) {
-        if (err) console.log("Error occured while dropping table university1: ", err.message)
-        console.log("University1 collection dropped");
-        mongoose.connection.db.dropCollection("university2", function(err, result) {
-            if (err) console.log("Error occured while dropping table university2: ", err.message)
-            console.log("University2 collection dropped");
-
-            main();
-        });
-    });
+    mongoose.connection.db.listCollections({}, {nameOnly: true}).toArray().then(async (collections) => {
+        for (let i = 0; i < collections.length; i++){
+            if (collections[i].name == "university1") await mongoose.connection.db.dropCollection("university1")
+            else if (collections[i].name == "university2") await mongoose.connection.db.dropCollection("university2")
+        }
+        main()
+    })
 }).catch((err) => {
     console.error("Can't connect to the database...", err);
 })
@@ -73,6 +70,7 @@ async function update1(filter, data) {          // function for update filtered 
 }
 
 async function main() {
+    //Exercise 2. Inserting all data
     for (let i = 0; i < first.length; i++){
         await insertData1(first[i]);
     }
@@ -81,39 +79,39 @@ async function main() {
         await insertData2(second[i]);
     }
 
-    University1.aggregate([{
-        $sort: {
-            country: 1
-        }
-    }, {
-        $project: {
-            _id: true,
-            location: true
-        }
-    }]).then(docs => {
-        console.log(docs[0])
-        docs.forEach(async (value) => {
-            await update1({_id: value._id}, {
-                latitude: value.location.ll[0],
-                longitude: value.location.ll[1] 
-            })
-        })
-    }).catch((err) => {
-        console.log(err.message);
-    })
-
-    University1.aggregate([
+    //Exercise 3. Extracting longitude and latitude
+    let docs = await University1.aggregate([
         {
-          '$project': {
-            'country': '$country', 
-            'current_students': {
-              '$filter': {
-                'input': '$students', 
-                'as': 'student', 
-                'cond': {
-                  '$eq': [
+            $sort: {
+                country: 1
+            }
+        }, 
+        {
+            $project: {
+                _id: true,
+                location: true
+            }
+        }
+    ])
+    for (let i = 0; i < docs.length; i++){
+        await update1({_id: docs[i]._id}, {
+            latitude: docs[i].location.ll[0],
+            longitude: docs[i].location.ll[1] 
+        })
+    }
+    //Exercise 4. Finding difference between all students in the last year and the overall students from the same country
+    docs = await University1.aggregate([
+        {
+          $project: {
+            country: '$country',
+            current_students: {
+              $filter: {
+                input: '$students', 
+                as: 'student', 
+                cond: {
+                  $eq: [
                     '$$student.year', {
-                      '$max': '$students.year'
+                      $max: '$students.year'
                     }
                   ]
                 }
@@ -121,49 +119,51 @@ async function main() {
             }
           }
         }, {
-          '$project': {
-            'country': true, 
-            'all': {
-              '$sum': '$current_students.number'
-            }
-          }
-        }, {
-          '$group': {
-            '_id': '$country', 
-            'all_students': {
-              '$sum': '$all'
+          $project: {
+            country: true, 
+            all: {
+              $sum: '$current_students.number'
             }
           }
         },{
-            '$sort': {
-                '_id': 1
+            $lookup: {
+                from: 'university2',
+                localField: 'country',
+                foreignField: 'country',
+                as: 'overall'
+            }
+        },
+        {
+            $sort: {
+                _id: 1
             }
         }
-      ]).then(docs => {
-        console.log(docs)
-        docs.forEach(async (value, index) => {
+    ])
 
+    for (let i = 0; i < docs.length; i++){
+        await update1({_id: docs[i]._id}, {
+            count_difference: docs[i].all - docs[i].overall[0].overallStudents
         })
-    }).catch((err) => {
-        console.log(err.message);
-    })
-    University2.find((err, docs) => {
-        if (err) return console.log(err.message);
-        docs.forEach(async (value, index) => {
-            const university = await University1.findOne({country: value.country}, {}, {useFindAndModify: false})
-            if (university){
-                await update1({_id: university._id}, {
-                    count_difference: value.overallStudents - university.students.length
-                })
+    }
+
+    //Exercise 5. Find documents count by countries
+    docs = await University1.aggregate([
+        { 
+            $group: {
+                _id: "$country",
+                count: {
+                    $sum: 1
+                }
             }
-        })
+        },
+        {
+            $sort: {
+                _id: 1
+            }
+        }
+    ])
+    docs.forEach((value, index) => {
+        console.log(value)
     })
+    mongoose.connection.close()
 }
-/*
-insertion().then(() => {
-    console.log("All data inserted...")
-}).catch(err => {
-    console.error("Cannot insert all data...", err)                                                //should be called only once
-})             
-*/
-
