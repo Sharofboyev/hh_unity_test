@@ -7,7 +7,7 @@ You should download the code from [GitHub](https://github.com/Sharofboyev/hh_uni
 npm i
 ```
 
-node js version 12.x and local mongodb server running in 27017 port is required.
+node js version 12+ and local mongodb server running in 27017 port is required.
 
 ## How to run the code
 
