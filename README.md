@@ -18,4 +18,4 @@ node index.js
 There is comments in the code for better understand
 
 ## License
-[MIT]
+MIT
