@@ -12,6 +12,7 @@ mongoose.connect(`mongodb://localhost/${config.DB.db_name}`, { useUnifiedTopolog
         for (let i = 0; i < collections.length; i++){
             if (collections[i].name == "university1") await mongoose.connection.db.dropCollection("university1")
             else if (collections[i].name == "university2") await mongoose.connection.db.dropCollection("university2")
+            else if (collections[i].name == "count_by_countries") await mongoose.connection.db.dropCollection("count_by_countries")
         }
 
         //all exercises done in main function
@@ -167,8 +168,16 @@ async function main() {
             }
         }
     ])
-    docs.forEach((value, index) => {
-        console.log(value)
+
+    //exercise 6. Write them to the new collection
+    const countSchema = mongoose.Schema({             //schema for new collection
+        country: String,
+        count: Number
     })
+    const Count_by_country = mongoose.model("Count_by_country", countSchema)
+    for (let i = 0; i < docs.length; i++){
+        const country = new Count_by_country({country: docs[i]._id.toString(), count: docs[i].count})
+        await country.save()
+    }
     mongoose.connection.close()
 }

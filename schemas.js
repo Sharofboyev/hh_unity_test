@@ -1,5 +1,5 @@
 const Joi = require("joi")
-module.exports.validate1 = function validate1(data) {
+module.exports.validate1 = function validate1(data) {       //data validator for university1 collection
     return Joi.object({
         country: Joi.string(),
         city: Joi.string(),
@@ -22,7 +22,7 @@ module.exports.validate1 = function validate1(data) {
     }).validate(data)
 }
 
-module.exports.validate2 = function validate2(data) {
+module.exports.validate2 = function validate2(data) {       //data validator for university2 collection
     return Joi.object({
         country: Joi.string(),
         overallStudents: Joi.number()
