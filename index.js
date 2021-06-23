@@ -3,14 +3,21 @@ const config = require("./config");
 const first = require("./first.json");
 const second = require("./second.json");
 const {validate1, validate2} = require("./schemas")
+
+//exercise 1. Connecting to local database from localhost. Database name defined in config.js
 mongoose.connect(`mongodb://localhost/${config.DB.db_name}`, { useUnifiedTopology: true, useNewUrlParser: true }).then(async () => {
     console.log("Connected to the database...");
+    //deleting collections university1 and university2 if exists
     mongoose.connection.db.listCollections({}, {nameOnly: true}).toArray().then(async (collections) => {
         for (let i = 0; i < collections.length; i++){
             if (collections[i].name == "university1") await mongoose.connection.db.dropCollection("university1")
             else if (collections[i].name == "university2") await mongoose.connection.db.dropCollection("university2")
         }
-        main()
+
+        //all exercises done in main function
+        main().catch((err) => {
+            console.log(err.message)
+        })
     })
 }).catch((err) => {
     console.error("Can't connect to the database...", err);
@@ -48,16 +55,14 @@ async function insertData1 (data){          // asynchronous function for inserti
     const {error, value} = validate1(data)
     if (error) return console.error(error.details[0].message);
     const university = new University1(value);
-    const result = await university.save();
-    //console.log("Inserted document to University1 : ", result)
+    await university.save();
 }
 
 async function insertData2 (data){          // asynchronous function for inserting document to the university2 collection
     const {error, value} = validate2(data)
     if (error) return console.error(error.details[0].message);
     const university = new University2(value);
-    const result = await university.save();
-    //console.log("Inserted document to University2 : ", result)
+    await university.save();
 }
 
 async function update1(filter, data) {          // function for update filtered documents in collection university1
