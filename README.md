@@ -15,3 +15,4 @@ Type in command line
 ```bash
 node index.js
 ```
+There is comments in the code for better understand
